@@ -14,3 +14,5 @@ Reducer->It is a pure function which takes previous state and returns new state
 connect->A function which wires redux and react,providing mapDispatchToProps and mapStateToProps.
 - It is a kind of wrapper which provides functions avaliabe in props,and it talk to redux.
 
+Provider->A wrapper parent component 
+

@@ -1,15 +1,15 @@
 import React from 'react';
 import { render } from 'react-dom';
+import PropTypes from 'prop-types';
 import Hello from './Hello';
 
 
 
 //Redux impl
-
 const initialState = {
   todoList: {},
   currId: 1,
-  todoTxt:''
+  todoTxt: ''
 
 }
 
@@ -20,7 +20,7 @@ const addTodo = (state, action) => {
     ...state,
     todoList: { ...state.todoList, [state.currId]: { txt: action.payload.txt, status: 0 } },
     currId: state.currId + 1,
-    todoTxt:''
+    todoTxt: ''
   }
 
 }
@@ -33,10 +33,10 @@ const toggleTodo = (state, action) => {
 }
 
 
-const updateTodo =(state,action)=>{
+const updateTodo = (state, action) => {
   return {
     ...state,
-    todoTxt:action.payload.txt
+    todoTxt: action.payload.txt
   }
 }
 
@@ -48,7 +48,7 @@ const reducer = (state = initialState, action) => {
     case 'toggleTodo':
       return toggleTodo(state, action)
     case 'updateTodo':
-      return updateTodo(state,action)
+      return updateTodo(state, action)
     default:
       return state;
   }
@@ -82,10 +82,63 @@ const createStore = (reducer) => {
 
 
 }
-
-
 const storeInst = createStore(reducer);
 
+//connect
+const Connect = (mapStateToProps, mapDispatchToProps) => (
+  (Pcomponent) => {
+    return class ConnectedComponent extends React.Component {
+      constructor() {
+        super();
+        this.store = storeInst;
+      }
+
+      onStateOrPropsChange() {
+
+        const storeState = this.store.getState();
+        const stateProps = mapStateToProps(storeState);
+        let strDispatch = this.store.dispatch;
+        const dispatchProps = mapDispatchToProps(strDispatch);
+        this.setState({ ...stateProps, ...dispatchProps });
+      }
+
+      componentWillMount() {
+        this.store.subscribe(() => this.onStateOrPropsChange());
+        this.onStateOrPropsChange();
+
+      }
+
+
+      render() {
+        return (
+          <Pcomponent {...this.state} />
+        )
+      }
+
+    }
+    return component;
+  }
+)
+
+
+//Provider
+class Provider extends React.Component {
+
+  getChildContext() {
+    return { store: this.props.store }
+  }
+  render() {
+    return this.props.children
+  }
+
+
+}
+
+Provider.childContextTypes = {
+  store: PropTypes.object
+};
+
+//React Impl
 
 const styles = {
   fontFamily: 'sans-serif',
@@ -94,70 +147,86 @@ const styles = {
 
 class App extends React.Component {
 
-constructor(props){
-  super(props);
-  this.state = props.store.getState();
-  this.stateChanged = this.stateChanged.bind(this);
-  this.textChange = this.textChange.bind(this);
-  this.addTodo = this.addTodo.bind(this);
-}
+  constructor(props) {
+    super(props);
+    //this.state = props.store.getState();
+    //this.stateChanged = this.stateChanged.bind(this);
+    this.textChange = this.textChange.bind(this);
+    this.addTodo = this.addTodo.bind(this);
+  }
 
-componentWillMount(){
-  this.props.store.subscribe(()=>this.setState(this.props.store.getState()));
-}
-
-stateChanged(){
-  console.log("state have been changed");
-}
-
-renderTodo(){
-  let todoList = this.state.todoList;
-  let markup = [];
   
-  return Object.keys(todoList).map((key)=>(<li>{todoList[key].txt}</li>))
 
+  renderTodo() {
+    let todoList = this.props.todoList;
+    let markup = [];
 
-
-   
-}
-
-textChange(event){
-  let value = event.target.value;
-  console.log(value);
- 
-  this.props.store.dispatch({ type:'updateTodo',payload:{txt:value}});
-
-}
-
-
-addTodo(){
-  this.props.store.dispatch({ type: 'addTodo', payload: { txt: this.state.todoTxt}})
-}
+    return Object.keys(todoList).map((key) => (<li>{todoList[key].txt}</li>))
 
 
 
 
-render(){
-  return (
-    <div className="app" style={styles}>
-      <Hello name="CodeSandbox" />
-      <h2>Todo List</h2>
-      <input type="text" value={this.state.todoTxt} onChange={this.textChange}/>
-      <button type="button" onClick={this.addTodo} >
-      Add 
+  }
+
+  textChange(event) {
+    let value = event.target.value;
+    //console.log(value);
+
+    this.props.textChange(value);
+
+  }
+
+
+  addTodo() {
+
+    //this.props.store.dispatch({ type: 'addTodo', payload: { txt: this.props.todoTxt}})
+    this.props.addTodo(this.props.todoTxt)
+  }
+
+
+
+
+  render() {
+    return (
+      <div className="app" style={styles}>
+        <Hello name="CodeSandbox" />
+        <h2>Todo List</h2>
+        <input type="text" value={this.props.todoTxt} onChange={this.textChange} />
+        <button type="button" onClick={this.addTodo} >
+          Add
       </button>
-      <ul className="todo-list">
-        {this.renderTodo()}
-      </ul>
+        <ul className="todo-list">
+          {this.renderTodo()}
+        </ul>
 
 
 
-    </div>
-  )
+      </div>
+    )
+  }
+
+
+
 }
 
+const mapStateToProps = (state) => ({
+  todoTxt: state.todoTxt,
+  todoList: state.todoList
+
+})
+const mapDispatchToProps = (dispatch) => ({
+  addTodo: (txt) => (dispatch({ type: 'addTodo', payload: { txt: txt } })),
+  textChange: (value) => (dispatch({ type: 'updateTodo', payload: { txt: value } }))
+})
+var ConnectedApp = Connect(mapStateToProps, mapDispatchToProps)(App);
 
 
-}
 
-render(<App store={storeInst}/>, document.getElementById('root'));
+
+
+
+
+
+
+
+render(<Provider store={storeInst}><ConnectedApp /></Provider>, document.getElementById('root'));
